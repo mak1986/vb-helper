@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Viabill Integration Example</title>
+</head>
+
+<body>
+    <h1>Viabill Integration</h1>
+    <p>The hidden price containers and Viabill script will be injected before &lt;/body&gt;</p>
+
+    <script src="dist/vb-helper.min.es2015.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const configurations = [
+           {
+            type: "product",
+            priceContainerSelector: ".product__info-wrapper .product__tax",
+            primaryPriceSelector: ".product__info-wrapper .price .price-item--regular",
+            secondaryPriceSelector: ".product__info-wrapper .price .price-item--sale",
+            style: "display:flex;justify-content:flex-start;"
+          },
+          {
+            type: "basket",
+            priceContainerSelector: ".cart__footer .totals",
+            primaryPriceSelector: ".cart__footer .totals .totals__total-value",
+            style: "display:flex;justify-content:flex-end;margin-top:10px;"
+          },
+          {
+            type: "mini-basket",
+            priceContainerSelector: ".cart-drawer__footer",
+            primaryPriceSelector: ".cart-drawer__footer .totals__total-value",
+            style: "display:flex;justify-content:center;padding-bottom:10px;"
+          }
+        ];
+        function waitForVBHelper() {
+          if (window.vbHelper?.init) {
+            const code = "hBLuQRwF0AY%3D";
+            window.vbHelper.init(code, configurations);
+          } else {
+            setTimeout(waitForVBHelper, 50);
+          }
+        }
+        waitForVBHelper();
+      });
+    </script>
+    <!-- <script>
+
+        document.addEventListener("DOMContentLoaded", async function () {
+
+            const configurations = [{
+                type: 'basket',
+                priceContainerSelector: '.wp-block-woocommerce-cart-order-summary-block',
+                priceSelector: '.wp-block-woocommerce-cart-order-summary-block .wc-block-components-totals-item__value span',
+                style: 'display:flex;justify-content:center;'
+            }, {
+                type: 'mini-basket',
+                priceContainerSelector: '.woocommerce-mini-cart__total',
+                priceSelector: '.woocommerce-mini-cart__total .woocommerce-mini-cart__total .woocommerce-Price-amount bdi',
+                style: 'display:flex;justify-content:center;padding:10px;'
+            }]
+
+            window.viabillHelper.init(configurations);
+
+            // for (const config of configurations) {
+            //     const { type, priceContainerSelector, priceSelector, style } = config;
+
+            //     // start both waits at the same time
+            //     const priceElPromise = waitForElement(priceSelector);
+            //     const containerPromise = waitForElement(priceContainerSelector);
+
+            //     // 1) price element ready → update hidden price
+            //     priceElPromise.then(() => {
+            //         updatePrice(priceSelector, `#vb-${type}-hidden-price`);
+            //     });
+
+            //     // 2) container ready → inject pricetag → wait iframe → adjust width
+            //     const containerElement = await containerPromise;
+            //     injectPricetag({ containerElement, type, style });
+
+            //     const iframe = await waitForElement(
+            //         `#viabill-${type}-pricetag-wrapper > .viabill-pricetag > iframe`
+            //     );
+            //     await adjustWidthForTag(iframe);
+
+            // }
+
+            // // Basket
+            // const basketEl = await waitForElement(".wp-block-woocommerce-cart-order-summary-block");
+            // console.log("Basket element found:", basketEl);
+            // injectPricetag({
+            //     containerElement: basketEl,
+            //     type: 'basket',
+            //     style: 'display:flex;justify-content:center;'
+            // });
+            // const basketIframe = await waitForElement("#viabill-basket-pricetag-wrapper > .viabill-pricetag > iframe");
+            // console.log("Basket iframe found:", basketIframe);
+            // await adjustWidthForTag(basketIframe);
+
+            // // Mini-basket
+            // const miniBasketEl = await waitForElement(".woocommerce-mini-cart__total");
+            // console.log("Mini-basket element found:", miniBasketEl);
+            // injectPricetag({
+            //     containerElement: miniBasketEl,
+            //     type: 'mini-basket',
+            //     style: 'display:flex;justify-content:center;padding:10px;'
+            // });
+            // const miniBasketIframe = await waitForElement("#viabill-mini-basket-pricetag-wrapper .viabill-pricetag > iframe");
+            // console.log("Mini-basket iframe found:", miniBasketIframe);
+            // await adjustWidthForTag(miniBasketIframe);
+
+            // // Price updates
+            // await waitForElement(".wc-block-components-totals-item__value span");
+            // updatePrice('.wc-block-components-totals-item__value span', '#vb-basket-hidden-price');
+
+            // await waitForElement(".woocommerce-mini-cart__total .woocommerce-Price-amount bdi");
+            // updatePrice('.woocommerce-mini-cart__total .woocommerce-Price-amount bdi', '#vb-mini-basket-hidden-price');
+        });
+
+
+
+    </script> -->
+</body>
+
+</html>

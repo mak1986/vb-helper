@@ -1,6 +1,15 @@
 (function (w) {
     "use strict";
 
+    function ensureViabillOptions() {
+        w.viabillOptions = w.viabillOptions || [];
+        return w.viabillOptions;
+    }
+
+    function vbSetCookiesEnabled(value /* false | true | string[] */) {
+        ensureViabillOptions().push({ "pricetag.cookiesEnabled": value });
+    }
+
     function loadViaBillScript(code, {
         gracePeriod = 200,   // ms to wait before injecting
         pollInterval = 50    // ms to check during grace period
@@ -159,7 +168,7 @@
 
 
 
-    function adjustWidthForTag(iframe, extraWidth =0, { retries = 20, interval = 300 } = {}) {
+    function adjustWidthForTag(iframe, extraWidth = 0, { retries = 20, interval = 300 } = {}) {
         if (!iframe) return Promise.resolve(false);
 
         const priceTagEl = iframe.parentElement;
@@ -193,7 +202,7 @@
 
                     setTimeout(() => {
                         const width = (inner.scrollWidth || inner.offsetWidth || inner.clientWidth);
-                        priceTagEl.style.width = (width + 5 + extraWidth ) + 'px';
+                        priceTagEl.style.width = (width + 5 + extraWidth) + 'px';
                         resolve(true);
                     }, 200);
                 } catch (err) {
@@ -224,7 +233,13 @@
 
     async function init(configurations) {
 
-        const {code, extraWidth , pricetagConfigs} = configurations;
+        const { code, extraWidth, pricetagConfigs, cookiesEnabled } = configurations;
+
+        // ✅ If caller provided consent, push it BEFORE loading ViaBill
+        // cookiesEnabled can be: false | true | ['necessary','functional',...]
+        if (cookiesEnabled === false || cookiesEnabled === true || Array.isArray(cookiesEnabled)) {
+            vbSetCookiesEnabled(cookiesEnabled);
+        }
 
         // 1️⃣ Ensure ViaBill script is loaded
         await loadViaBillScript(code);
@@ -260,7 +275,7 @@
                     `#viabill-${type}-pricetag-wrapper > .viabill-pricetag > iframe`
                 );
 
-                await adjustWidthForTag(iframe, extraWidth );
+                await adjustWidthForTag(iframe, extraWidth);
             })
         );
     }
@@ -268,5 +283,6 @@
     // ✅ expose API
     w.vbHelper = w.vbHelper || {};
     w.vbHelper.init = init;
+    w.vbHelper.setCookiesEnabled = vbSetCookiesEnabled;
 
 })(window);

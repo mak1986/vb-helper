@@ -11,9 +11,16 @@
   <h1>Viabill Integration</h1>
   <p>The hidden price containers and Viabill script will be injected before &lt;/body&gt;</p>
 
-  <script src="dist/vb-helper.min.es2015.js"></script>
+  <!-- Core (required) -->
+  <script src="dist/core/vb-helper.min.es2015.js"></script>
+
+  <!-- Consent adapter (optional, Shopify) -->
+  <script src="dist/consent-adapters/shopify-consent-adapter.min.es2015.js"></script>
+
   <script>
+
     document.addEventListener("DOMContentLoaded", function () {
+
       const code = "hBLuQRwF0AY%3D";
       const extraWidth = 20;
       const pricetagConfigs = [
@@ -37,18 +44,25 @@
           style: "display:flex;justify-content:center;padding-bottom:10px;"
         }
       ];
+
       function waitForVBHelper() {
         if (window.vbHelper?.init) {
-          const config = {
+          // ✅ Explicit (non-DX): bind Shopify consent BEFORE init loads ViaBill script
+          // (only if your adapter exposes this function)
+          if (window.vbHelper.bindShopifyConsent) {
+            window.vbHelper.bindShopifyConsent({ mode: "categories", debug: true });
+          }
+
+          window.vbHelper.init({
             code,
             extraWidth,
             pricetagConfigs
-          }
-          window.vbHelper.init(config);
+          });
         } else {
           setTimeout(waitForVBHelper, 50);
         }
       }
+
       waitForVBHelper();
     });
   </script>

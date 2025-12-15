@@ -159,7 +159,7 @@
 
 
 
-    function adjustWidthForTag(iframe, { retries = 20, interval = 300 } = {}) {
+    function adjustWidthForTag(iframe, extraWidth =0, { retries = 20, interval = 300 } = {}) {
         if (!iframe) return Promise.resolve(false);
 
         const priceTagEl = iframe.parentElement;
@@ -193,7 +193,7 @@
 
                     setTimeout(() => {
                         const width = (inner.scrollWidth || inner.offsetWidth || inner.clientWidth);
-                        priceTagEl.style.width = (width + 5) + 'px';
+                        priceTagEl.style.width = (width + 5 + extraWidth ) + 'px';
                         resolve(true);
                     }, 200);
                 } catch (err) {
@@ -222,16 +222,19 @@
         });
     }
 
-    async function init(code, configurations = []) {
+    async function init(configurations) {
+
+        const {code, extraWidth , pricetagConfigs} = configurations;
+
         // 1️⃣ Ensure ViaBill script is loaded
         await loadViaBillScript(code);
 
         // 2️⃣ Create hidden price containers
-        generateHiddenPrices(configurations);
+        generateHiddenPrices(pricetagConfigs);
 
         // 3️⃣ Existing logic (unchanged)
         return Promise.allSettled(
-            configurations.map(async (config) => {
+            pricetagConfigs.map(async (config) => {
                 const { type, priceContainerSelector, primaryPriceSelector, secondaryPriceSelector, style } = config;
 
                 const primaryPriceElPromise = waitForElement(primaryPriceSelector);
@@ -257,7 +260,7 @@
                     `#viabill-${type}-pricetag-wrapper > .viabill-pricetag > iframe`
                 );
 
-                await adjustWidthForTag(iframe);
+                await adjustWidthForTag(iframe, extraWidth );
             })
         );
     }

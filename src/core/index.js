@@ -116,14 +116,17 @@
         const {
             containerElement,
             type,
-            style = 'display:flex;justify-content:center;align-items:center;margin-top:5px;margin-botttom:5px;'
+            style = 'display:flex;justify-content:center;align-items:center;margin-top:5px;margin-botttom:5px;',
+            currency = 'dkk',
+            countryCode = 'dk',
+            language = 'da'
         } = params;
 
         const dataView = type.includes('basket') ? 'basket' : type
 
         const dynamicPriceId = `#vb-${type}-hidden-price`
 
-        const html = `<div id="viabill-${type}-pricetag-wrapper" style="${style}"><div class="viabill-pricetag" data-view="${dataView}" data-dynamic-price="${dynamicPriceId}" data-dynamic-price-triggers="${dynamicPriceId}" data-language="da" data-currency="dkk" data-country-code="dk"></div></div>`;
+        const html = `<div id="viabill-${type}-pricetag-wrapper" style="${style}"><div class="viabill-pricetag" data-view="${dataView}" data-dynamic-price="${dynamicPriceId}" data-dynamic-price-triggers="${dynamicPriceId}" data-language="${language}" data-currency="${currency}" data-country-code="${countryCode}"></div></div>`;
 
         containerElement.insertAdjacentHTML('afterend', html);
     }
@@ -250,7 +253,7 @@
         // 3️⃣ Existing logic (unchanged)
         return Promise.allSettled(
             pricetagConfigs.map(async (config) => {
-                const { type, priceContainerSelector, primaryPriceSelector, secondaryPriceSelector, style } = config;
+                const { type, priceContainerSelector, primaryPriceSelector, secondaryPriceSelector, style, currency, countryCode, language } = config;
 
                 const primaryPriceElPromise = waitForElement(primaryPriceSelector);
                 const secondaryPriceElPromise = waitForElement(secondaryPriceSelector);
@@ -268,7 +271,7 @@
                 const containerElement = await containerPromise;
 
                 if (!document.querySelector(`#viabill-${type}-pricetag-wrapper`)) {
-                    injectPricetag({ containerElement, type, style });
+                    injectPricetag({ containerElement, type, style, currency, countryCode, language });
                 }
 
                 const iframe = await waitForElement(

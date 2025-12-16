@@ -44,6 +44,9 @@
           style: "display:flex;justify-content:center;padding-bottom:10px;"
         }
       ];
+      // currency = "eur";
+      // countryCode = "es";
+      // language = "es";
 
       function waitForVBHelper() {
         if (window.vbHelper?.init) {
@@ -56,7 +59,10 @@
           window.vbHelper.init({
             code,
             extraWidth,
-            pricetagConfigs
+            pricetagConfigs,
+            // currency, 
+            // countryCode, 
+            // language
           });
         } else {
           setTimeout(waitForVBHelper, 50);

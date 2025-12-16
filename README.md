@@ -7,8 +7,12 @@ It handles:
 - Async / late-rendered DOM elements
 - Dynamic price updates
 - Automatic iframe width adjustment
+- Optional cookie-consent handling (via adapters)
+- Optional localization (currency, country, language)
 
-Use the included `esbuild` script to produce a minified file from `index.js`.
+Use the included `esbuild` script to produce minified files.
+
+---
 
 ## Build steps (PowerShell)
 
@@ -18,17 +22,28 @@ cd 'c:\Users\Lenovo\Desktop\Work\libraries\vb-helper'
 # Install dev dependency
 npm install --save-dev esbuild
 
-# Run the minify build (produces dist files)
+# Run build (produces dist files)
 npm run build
-
-# Optional: produce ES2015-compatible output
-npm run build:es2015
 ```
+
+Build output:
+
+```
+dist/
+├─ core/
+│  ├─ vb-helper.min.js
+│  └─ vb-helper.min.es2015.js
+└─ consent-adapters/
+   └─ shopify-consent-adapter.min.es2015.js
+```
+
+---
 
 ## Notes
 
 - The build uses `esbuild` to minify and generate source maps.
-- If you need older-browser (IE11) support, add Babel + polyfills (not included).
+- The core helper is CMS-agnostic.
+- Cookie consent support is provided via separate adapters.
 - The helper exposes a global API on `window.vbHelper`.
 
 ---
@@ -41,10 +56,16 @@ The helper injects ViaBill pricetags into **product pages**, **baskets**, and **
 
 ## 1. Include the helper script
 
-Include the built file **before `</body>`**:
+Include the core helper **before `</body>`**:
 
 ```html
-<script src="dist/vb-helper.min.es2015.js"></script>
+<script src="dist/core/vb-helper.min.es2015.js"></script>
+```
+
+### Optional: Shopify cookie consent adapter
+
+```html
+<script src="dist/consent-adapters/shopify-consent-adapter.min.es2015.js"></script>
 ```
 
 ---
@@ -57,7 +78,7 @@ Call `vbHelper.init()` once the DOM is ready.
 <script>
 document.addEventListener("DOMContentLoaded", function () {
   const code = "YOUR_VIABILL_CODE";
-  const extraWidth = 20; // extra pixels added to calculated pricetag width
+  const extraWidth = 20;
 
   const pricetagConfigs = [
     {
@@ -100,7 +121,70 @@ document.addEventListener("DOMContentLoaded", function () {
 
 ---
 
-## 3. Configuration reference
+## 3. Localization (optional)
+
+You can explicitly set the currency, country code, and language used by all pricetags.
+
+```js
+vbHelper.init({
+  code: "YOUR_VIABILL_CODE",
+  currency: "eur",
+  countryCode: "es",
+  language: "es",
+  pricetagConfigs
+});
+```
+
+If not provided:
+- ViaBill defaults are used
+- or values are derived from the merchant configuration
+
+---
+
+## 4. Cookie consent (optional)
+
+### Shopify (recommended on Shopify stores)
+
+Bind the Shopify consent adapter **before** calling `init()`:
+
+```js
+vbHelper.bindShopifyConsent({
+  mode: "categories",
+  debug: true
+});
+```
+
+- `categories` (recommended): granular consent  
+  (`necessary`, `functional`, `statistical`, `marketing`)
+- `boolean`: legacy on/off mode
+- `debug`: logs consent flow to the console
+
+The helper will:
+- default to cookies disabled
+- update ViaBill when consent changes
+- respect GDPR regions automatically via Shopify
+
+---
+
+### Generic / manual consent
+
+If you manage cookies yourself (WordPress, custom CMP, etc.):
+
+```js
+vbHelper.setCookiesEnabled(false); // before consent
+
+vbHelper.setCookiesEnabled([
+  "necessary",
+  "functional",
+  "statistical"
+]); // after consent
+```
+
+This must be called **before** the ViaBill script is loaded.
+
+---
+
+## 5. Configuration reference
 
 ### `vbHelper.init(config)`
 
@@ -108,7 +192,10 @@ document.addEventListener("DOMContentLoaded", function () {
 vbHelper.init({
   code,
   extraWidth,
-  pricetagConfigs
+  pricetagConfigs,
+  currency,
+  countryCode,
+  language
 });
 ```
 
@@ -119,6 +206,9 @@ vbHelper.init({
 | `code` | `string` | ViaBill merchant code |
 | `extraWidth` | `number` | Extra pixels added to calculated iframe width |
 | `pricetagConfigs` | `Array` | List of pricetag configurations |
+| `currency` | `string` | Currency code (e.g. `dkk`, `eur`) |
+| `countryCode` | `string` | Country code (e.g. `dk`, `es`) |
+| `language` | `string` | Language code (e.g. `da`, `es`) |
 
 ---
 
@@ -131,7 +221,7 @@ Each entry in `pricetagConfigs` represents **one pricetag**.
 | Field | Description |
 |-----|------------|
 | `type` | Unique identifier (`product`, `basket`, `mini-basket`, etc.) |
-| `priceContainerSelector` | Element **after which** the pricetag is injected |
+| `priceContainerSelector` | Element after which the pricetag is injected |
 | `primaryPriceSelector` | Selector for the main price |
 | `secondaryPriceSelector` | Optional selector for sale/discount price |
 
@@ -143,14 +233,15 @@ Each entry in `pricetagConfigs` represents **one pricetag**.
 
 ---
 
-## 4. How it works (summary)
+## 6. How it works (summary)
 
-1. Loads the ViaBill script if not already present
-2. Creates hidden price containers
-3. Watches the DOM for price changes
-4. Injects pricetags when containers appear
-5. Keeps prices synced in real time
-6. Measures iframe width and applies `extraWidth` compensation
+1. Loads the ViaBill script if not already present  
+2. Applies cookie-consent configuration (if provided)  
+3. Creates hidden price containers  
+4. Watches the DOM for price changes  
+5. Injects pricetags when containers appear  
+6. Keeps prices synced in real time  
+7. Measures iframe width and applies `extraWidth` compensation  
 
 This makes it suitable for:
 - Shopify themes
@@ -161,28 +252,33 @@ This makes it suitable for:
 
 ---
 
-## 5. Public API
+## 7. Public API
 
 ```js
 window.vbHelper.init(config)
+window.vbHelper.setCookiesEnabled(value)
+window.vbHelper.bindShopifyConsent(options)
 ```
 
-Returns a `Promise` resolving once all configured pricetags are initialized.
+`init()` returns a Promise resolving once all configured pricetags are initialized.
 
 ---
 
 ## Best practices
 
-- Include the helper **only once**
-- Use **unique `type` values**
-- Avoid loading ViaBill’s script separately
-- Choose stable price selectors that update when prices change
-- Use `extraWidth` sparingly (layout fine-tuning only)
+- Include the helper only once  
+- Use unique `type` values  
+- Avoid loading ViaBill’s script separately  
+- Choose stable price selectors  
+- Bind cookie consent before calling `init()`  
+- Use `extraWidth` sparingly  
 
 ---
 
 ## Versioning
 
-- `v0.1.x` — initial API
-- `v0.2.0` — updated `init(config)` API with `extraWidth`
-- `v1.0.0` — planned stable API
+- `v0.1.x` — initial API  
+- `v0.2.0` — added `extraWidth`  
+- `v0.3.0` — consent adapters and debug support  
+- `v0.4.0` — localization (`currency`, `countryCode`, `language`)  
+- `v1.0.0` — planned stable API  

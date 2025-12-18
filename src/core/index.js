@@ -106,7 +106,7 @@
     ${configurations.map(config => {
             const { type } = config;
             return `<div id="vb-${type}-hidden-price"></div>`;
-        })}
+        }).join('')}
 </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
     }

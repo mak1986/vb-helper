@@ -236,7 +236,7 @@
 
     async function init(configurations) {
 
-        const { code, extraWidth, pricetagConfigs, cookiesEnabled } = configurations;
+        const { code, extraWidth, pricetagConfigs, cookiesEnabled, currency, countryCode, language } = configurations;
 
         // ✅ If caller provided consent, push it BEFORE loading ViaBill
         // cookiesEnabled can be: false | true | ['necessary','functional',...]
@@ -253,7 +253,7 @@
         // 3️⃣ Existing logic (unchanged)
         return Promise.allSettled(
             pricetagConfigs.map(async (config) => {
-                const { type, priceContainerSelector, primaryPriceSelector, secondaryPriceSelector, style, currency, countryCode, language } = config;
+                const { type, priceContainerSelector, primaryPriceSelector, secondaryPriceSelector, style } = config;
 
                 const primaryPriceElPromise = waitForElement(primaryPriceSelector);
                 const secondaryPriceElPromise = waitForElement(secondaryPriceSelector);
@@ -272,6 +272,9 @@
 
                 if (!document.querySelector(`#viabill-${type}-pricetag-wrapper`)) {
                     injectPricetag({ containerElement, type, style, currency, countryCode, language });
+
+                    // 🔥 immediately request re-init for newly inserted tags
+                    if(type === 'mini-basket') window.viabillPricetagInternal?.init?.(true);
                 }
 
                 const iframe = await waitForElement(

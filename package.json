@@ -1,6 +1,6 @@
 {
   "name": "vb-helper",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
   "description": "Tiny frontend snippet + helpers for Viabill pricetag integration",
   "scripts": {

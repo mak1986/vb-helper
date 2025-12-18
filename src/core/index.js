@@ -250,38 +250,121 @@
         // 2️⃣ Create hidden price containers
         generateHiddenPrices(pricetagConfigs);
 
-        // 3️⃣ Existing logic (unchanged)
-        return Promise.allSettled(
-            pricetagConfigs.map(async (config) => {
-                const { type, priceContainerSelector, primaryPriceSelector, secondaryPriceSelector, style } = config;
+        // Per-type lock to avoid overlapping rebuilds
+        const healingLocks = Object.create(null);
 
-                const primaryPriceElPromise = waitForElement(primaryPriceSelector);
-                const secondaryPriceElPromise = waitForElement(secondaryPriceSelector);
-                const containerPromise = waitForElement(priceContainerSelector);
+        // Small debounce helper (per config)
+        function debounce(fn, wait = 150) {
+            let t;
+            return (...args) => {
+                clearTimeout(t);
+                t = setTimeout(() => fn(...args), wait);
+            };
+        }
 
-                // price update (non-blocking)
-                primaryPriceElPromise.then(() => {
-                    updatePrice(primaryPriceSelector, `#vb-${type}-hidden-price`);
-                });
-                secondaryPriceElPromise.then(() => {
-                    updatePrice(secondaryPriceSelector, `#vb-${type}-hidden-price`);
-                });
+        // The full pipeline you want to retrigger
+        async function runPipeline(config) {
+            const { type, priceContainerSelector, style } = config;
 
-                // container → inject → iframe → adjust width
-                const containerElement = await containerPromise;
+            // Only heal if anchor exists
+            const anchor = document.querySelector(priceContainerSelector);
+            if (!anchor) return false;
 
-                if (!document.querySelector(`#viabill-${type}-pricetag-wrapper`)) {
-                    injectPricetag({ containerElement, type, style, currency, countryCode, language });
+            // Avoid concurrent rebuilds for same type
+            if (healingLocks[type]) return false;
+            healingLocks[type] = true;
 
-                    // 🔥 immediately request re-init for newly inserted tags
-                    if(type === 'mini-basket') window.viabillPricetagInternal?.init?.(true);
+            try {
+                const wrapperSel = `#viabill-${type}-pricetag-wrapper`;
+
+                // Inject if missing
+                if (!document.querySelector(wrapperSel)) {
+                    injectPricetag({
+                        containerElement: anchor,
+                        type,
+                        style,
+                        currency,
+                        countryCode,
+                        language
+                    });
+
+                    // Re-init after injecting new tags
+                    window.viabillPricetagInternal?.init?.(true);
                 }
 
+                // Wait for iframe then adjust width
                 const iframe = await waitForElement(
                     `#viabill-${type}-pricetag-wrapper > .viabill-pricetag > iframe`
                 );
 
                 await adjustWidthForTag(iframe, extraWidth);
+                return true;
+            } finally {
+                healingLocks[type] = false;
+            }
+        }
+
+        return Promise.allSettled(
+            pricetagConfigs.map(async (config) => {
+                const {
+                    type,
+                    priceContainerSelector,
+                    primaryPriceSelector,
+                    secondaryPriceSelector
+                } = config;
+
+                // --- Your existing price update wiring (unchanged) ---
+                const containerPromise = waitForElement(priceContainerSelector);
+
+                const primaryPriceElPromise = primaryPriceSelector
+                    ? waitForElement(primaryPriceSelector)
+                    : Promise.resolve(null);
+
+                const secondaryPriceElPromise = secondaryPriceSelector
+                    ? waitForElement(secondaryPriceSelector)
+                    : Promise.resolve(null);
+
+                primaryPriceElPromise.then(() => {
+                    if (primaryPriceSelector) updatePrice(primaryPriceSelector, `#vb-${type}-hidden-price`);
+                });
+
+                secondaryPriceElPromise.then(() => {
+                    if (secondaryPriceSelector) updatePrice(secondaryPriceSelector, `#vb-${type}-hidden-price`);
+                });
+
+                // --- Initial pipeline run ---
+                await containerPromise;
+                await runPipeline(config);
+
+                // --- ✅ Per-config self-healing observer ---
+                const debouncedHeal = debounce(async () => {
+                    // only when viabill is ready
+                    if (!window.viabillPricetagInternal) return;
+
+                    const anchor = document.querySelector(priceContainerSelector);
+                    if (!anchor) return; // anchor gone => do nothing
+
+                    const wrapper = document.querySelector(`#viabill-${type}-pricetag-wrapper`);
+                    if (wrapper) return; // wrapper still there => do nothing
+
+                    // wrapper missing but anchor exists => rebuild whole pipeline
+                    runPipeline(config);
+                }, 150);
+
+                const observer = new MutationObserver(() => {
+                    debouncedHeal();
+                });
+
+                observer.observe(document.documentElement, {
+                    childList: true,
+                    subtree: true
+                });
+
+                // (Optional) store observer reference if you want to stop it later
+                // w.vbHelper._observers = w.vbHelper._observers || {};
+                // w.vbHelper._observers[type] = observer;
+
+                return true;
             })
         );
     }

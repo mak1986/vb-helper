@@ -105,7 +105,7 @@
         const html = `<div id="vb-hidden-prices" style="visibility: hidden;height: 0;margin: 0;padding: 0;overflow: hidden;">
     ${configurations.map(config => {
             const { type } = config;
-            return `<div id="vb-${type}-hidden-price"></div>`;
+            return `<input type="hidden" id="vb-${type}-hidden-price" value="" />`;
         }).join('')}
 </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
@@ -131,7 +131,7 @@
         containerElement.insertAdjacentHTML('afterend', html);
     }
 
-    function updatePrice(priceSelector, hiddenValueSelector) {
+    function updatePrice(type, priceSelector, hiddenValueSelector) {
         // 🔧 Add more entries here for each pricetag you want to support
 
         const lastPrices = {};
@@ -144,17 +144,21 @@
 
         function updateSource(priceSelector, hiddenValueSelector) {
 
+            const wrapper = document.querySelector(`#viabill-${type}-pricetag-wrapper .viabill-pricetag`);
             const hidden = document.querySelector(hiddenValueSelector);
             if (!hidden) return;
 
             const price = getPrice(priceSelector);
+
             if (!price) return;
 
             const last = lastPrices[hiddenValueSelector];
             if (price !== last) {
                 lastPrices[hiddenValueSelector] = price;
-                hidden.textContent = price;
-                hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                hidden.value = price;
+                wrapper?.dispatchEvent(new CustomEvent("vb-update-price", {
+                    detail: { force: true }   // important: force bypasses cached resolvedPrice
+                }));
             }
 
         }
@@ -325,11 +329,11 @@
                     : Promise.resolve(null);
 
                 primaryPriceElPromise.then(() => {
-                    if (primaryPriceSelector) updatePrice(primaryPriceSelector, `#vb-${type}-hidden-price`);
+                    if (primaryPriceSelector) updatePrice(type, primaryPriceSelector, `#vb-${type}-hidden-price`);
                 });
 
                 secondaryPriceElPromise.then(() => {
-                    if (secondaryPriceSelector) updatePrice(secondaryPriceSelector, `#vb-${type}-hidden-price`);
+                    if (secondaryPriceSelector) updatePrice(type, secondaryPriceSelector, `#vb-${type}-hidden-price`);
                 });
 
                 // --- Initial pipeline run ---

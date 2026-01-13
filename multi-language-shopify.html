@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Viabill Integration Example</title>
+</head>
+
+<body>
+  <h1>Viabill Integration</h1>
+  <p>The hidden price containers and Viabill script will be injected before &lt;/body&gt;</p>
+
+  <!-- Core (required) -->
+  <script src="dist/core/vb-helper.min.es2015.js"></script>
+
+  <!-- Consent adapter (optional, Shopify) -->
+  <script src="dist/consent-adapters/shopify-consent-adapter.min.es2015.js"></script>
+
+  <script>
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+      const code = "fnwd_cbCIZc%3D";
+      const extraWidth = 0;
+      const pricetagConfigs = [
+               {
+          type: "product",
+          priceContainerSelector: ".product-information product-price",
+          primaryPriceSelector: ".product-information product-price .price",
+          style: "display:flex;justify-content:flex-start;"
+        },
+        {
+          type: "basket",
+          priceContainerSelector: ".cart__total-container",
+          primaryPriceSelector: ".cart__total-container .cart__total-value",
+          style: "display:flex;justify-content:center;margin-top:10px;"
+        },
+      ];
+
+      function isDanishKr() {
+        return (
+          window.Shopify?.currency?.active === "DKK" &&
+          window.Shopify?.country === "DK"
+        );
+      }
+
+      function waitForVBHelper() {
+        if (!window.vbHelper?.init) {
+          setTimeout(waitForVBHelper, 50);
+          return;
+        }
+
+        // ✅ Enable/disable (must stop healing + cleanup when false)
+        if (window.vbHelper.setEnabled) {
+          window.vbHelper.setEnabled(isDanishKr());
+        }
+
+        // Not DK/DKK => do not init
+        if (!isDanishKr()) return;
+
+        // Bind consent once (optional)
+        if (window.vbHelper.bindShopifyConsent && !window.__vbConsentBound) {
+          window.__vbConsentBound = true;
+          window.vbHelper.bindShopifyConsent({ mode: "categories", debug: true });
+        }
+
+        // Init once (avoid re-init loops)
+        if (!window.__vbInited) {
+          window.__vbInited = true;
+          window.vbHelper.init({
+            code,
+            extraWidth,
+            pricetagConfigs,
+            // currency: "dkk",
+            // countryCode: "dk",
+            // language: "da"
+          });
+        }
+      }
+
+      waitForVBHelper();
+
+      // ✅ If the market selector changes without a full page reload:
+      let lastKey = null;
+      setInterval(() => {
+        const key = `${window.Shopify?.country}|${window.Shopify?.currency?.active}`;
+        if (key === lastKey) return;
+        lastKey = key;
+
+        if (window.vbHelper?.setEnabled) {
+          window.vbHelper.setEnabled(isDanishKr());
+        }
+
+        // If they switch back to DK/DKK, allow init again
+        if (isDanishKr()) {
+          window.__vbInited = false;
+          waitForVBHelper();
+        } else {
+          window.__vbInited = false;
+        }
+      }, 300);
+
+    });
+  </script>
+</body>
+
+</html>

@@ -134,6 +134,10 @@
     function updatePrice(type, priceSelector, hiddenValueSelector) {
         // 🔧 Add more entries here for each pricetag you want to support
 
+        if (w.vbHelper?._state?.intervals?.[type]) {
+            clearInterval(w.vbHelper._state.intervals[type]);
+        }
+
         const lastPrices = {};
 
         function getPrice(selector) {
@@ -164,13 +168,15 @@
         }
 
         function update() {
+            if (w.vbHelper?._state?.enabled === false) return;
             updateSource(priceSelector, hiddenValueSelector)
         }
 
         // Initial run
         update();
         // Then every 1000ms
-        setInterval(update, 1000);
+        const id = setInterval(update, 1000);
+        w.vbHelper._state.intervals[type] = id;
     }
 
 
@@ -238,6 +244,7 @@
         });
     }
 
+
     async function init(configurations) {
 
         const { code, extraWidth, pricetagConfigs, cookiesEnabled, currency, countryCode, language } = configurations;
@@ -266,8 +273,14 @@
             };
         }
 
+        function isEnabled() {
+            return w.vbHelper?._state?.enabled !== false;
+        }
+
         // The full pipeline you want to retrigger
         async function runPipeline(config) {
+            if (!isEnabled()) return false;
+
             const { type, priceContainerSelector, style } = config;
 
             // Only heal if anchor exists
@@ -343,7 +356,7 @@
                 // --- ✅ Per-config self-healing observer ---
                 const debouncedHeal = debounce(async () => {
                     // only when viabill is ready
-                    if (!window.viabillPricetagInternal) return;
+                    if (!isEnabled() || !window.viabillPricetagInternal) return;
 
                     const anchor = document.querySelector(priceContainerSelector);
                     if (!anchor) return; // anchor gone => do nothing
@@ -356,6 +369,7 @@
                 }, 150);
 
                 const observer = new MutationObserver(() => {
+                    if (!isEnabled()) return;
                     debouncedHeal();
                 });
 
@@ -366,15 +380,48 @@
 
                 // (Optional) store observer reference if you want to stop it later
                 // w.vbHelper._observers = w.vbHelper._observers || {};
-                // w.vbHelper._observers[type] = observer;
+                w.vbHelper._state.observers[type] = observer;
+
 
                 return true;
             })
         );
     }
 
+    function setEnabled(value) {
+        w.vbHelper._state.enabled = !!value;
+
+        // If disabling: stop healing + optionally remove tags
+        if (!w.vbHelper._state.enabled) {
+            // stop observers
+            Object.values(w.vbHelper._state.observers).forEach(obs => {
+                try { obs.disconnect(); } catch (_) { }
+            });
+            w.vbHelper._state.observers = {};
+
+            // stop polling intervals if you store them
+            Object.values(w.vbHelper._state.intervals).forEach(id => clearInterval(id));
+            w.vbHelper._state.intervals = {};
+
+            // remove helper artifacts
+            document.querySelectorAll(
+                "#vb-hidden-prices, [id^='viabill-'][id$='-pricetag-wrapper']"
+            ).forEach(el => el.remove());
+
+            // remove viabill internal if present (optional)
+            w.viabillPricetagInternal?.destroy?.();
+        }
+    };
+
     // ✅ expose API
     w.vbHelper = w.vbHelper || {};
+
+    w.vbHelper.setEnabled = setEnabled;
+    w.vbHelper._state = w.vbHelper._state || {
+        enabled: true,
+        observers: {},
+        intervals: {}
+    };
     w.vbHelper.init = init;
     w.vbHelper.setCookiesEnabled = vbSetCookiesEnabled;
 

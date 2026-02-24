@@ -281,4 +281,6 @@ window.vbHelper.bindShopifyConsent(options)
 - `v0.2.0` — added `extraWidth`  
 - `v0.3.0` — consent adapters and debug support  
 - `v0.4.0` — localization (`currency`, `countryCode`, `language`)  
-- `v1.0.0` — planned stable API  
+- `v0.5.0` — feat(pricetag): add `setEnabled()` support to toggle ViaBill pricetag  
+- `v0.5.1` — secondary price now overrides primary when present  
+- `v1.0.0` — planned stable API

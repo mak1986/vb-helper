@@ -102,40 +102,76 @@
     }
 
     function generateHiddenPrices(configurations = []) {
-        const html = `<div id="vb-hidden-prices" style="visibility: hidden;height: 0;margin: 0;padding: 0;overflow: hidden;">
-    ${configurations.map(config => {
+        // Container div
+        const container = document.createElement("div");
+        container.id = "vb-hidden-prices";
+
+        container.style.visibility = "hidden";
+        container.style.height = "0";
+        container.style.margin = "0";
+        container.style.padding = "0";
+        container.style.overflow = "hidden";
+
+        // Create hidden inputs
+        configurations.forEach(config => {
             const { type } = config;
-            return `<input type="hidden" id="vb-${type}-hidden-price" value="" />`;
-        }).join('')}
-</div>`;
-        document.body.insertAdjacentHTML('beforeend', html);
+
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.id = `vb-${type}-hidden-price`;
+            input.value = "";
+
+            container.appendChild(input);
+        });
+
+        // Append to body
+        document.body.appendChild(container);
     }
 
-    function injectPricetag(params) {
 
+    function injectPricetag(params) {
         const {
             containerElement,
             type,
-            style = 'display:flex;justify-content:center;align-items:center;margin-top:5px;margin-botttom:5px;',
-            currency = 'dkk',
-            countryCode = 'dk',
-            language = 'da'
+            style = "display:flex;justify-content:center;align-items:center;margin-top:5px;margin-bottom:5px;",
+            currency = "dkk",
+            countryCode = "dk",
+            language = "da"
         } = params;
 
-        const dataView = type.includes('basket') ? 'basket' : type
+        const dataView = type.includes("basket") ? "basket" : type;
+        const dynamicPriceId = `#vb-${type}-hidden-price`;
 
-        const dynamicPriceId = `#vb-${type}-hidden-price`
+        // Wrapper
+        const wrapper = document.createElement("div");
+        wrapper.id = `viabill-${type}-pricetag-wrapper`;
+        wrapper.style.cssText = style;
 
-        const html = `<div id="viabill-${type}-pricetag-wrapper" style="${style}"><div class="viabill-pricetag" data-view="${dataView}" data-dynamic-price="${dynamicPriceId}" data-dynamic-price-triggers="${dynamicPriceId}" data-language="${language}" data-currency="${currency}" data-country-code="${countryCode}"></div></div>`;
+        // ViaBill pricetag
+        const pricetag = document.createElement("div");
+        pricetag.className = "viabill-pricetag";
 
-        containerElement.insertAdjacentHTML('afterend', html);
+        // Data attributes
+        pricetag.dataset.view = dataView;
+        pricetag.dataset.dynamicPrice = dynamicPriceId;
+        pricetag.dataset.dynamicPriceTriggers = dynamicPriceId;
+        pricetag.dataset.language = language;
+        pricetag.dataset.currency = currency;
+        pricetag.dataset.countryCode = countryCode;
+
+        // Build DOM
+        wrapper.appendChild(pricetag);
+
+        // Insert after containerElement
+        containerElement.insertAdjacentElement("afterend", wrapper);
     }
 
-    function updatePrice(type, priceSelector, hiddenValueSelector) {
-        // 🔧 Add more entries here for each pricetag you want to support
 
-        if (w.vbHelper?._state?.intervals?.[type]) {
-            clearInterval(w.vbHelper._state.intervals[type]);
+    function updatePrice(type, priceSelector, hiddenValueSelector) {
+        // use a per-type+selector key so multiple sources don't overwrite each other
+        const intervalKey = `${type}::${priceSelector}`;
+        if (w.vbHelper?._state?.intervals?.[intervalKey]) {
+            clearInterval(w.vbHelper._state.intervals[intervalKey]);
         }
 
         const lastPrices = {};
@@ -157,7 +193,11 @@
             if (!price) return;
 
             const last = lastPrices[hiddenValueSelector];
-            if (price !== last) {
+            const currentHidden = hidden.value;
+            // If this source's observed price changed since we last saw it,
+            // OR the hidden input doesn't match the observed price (another source overwrote it),
+            // then write and notify.
+            if (price !== last || price !== currentHidden) {
                 lastPrices[hiddenValueSelector] = price;
                 hidden.value = price;
                 wrapper?.dispatchEvent(new CustomEvent("vb-update-price", {
@@ -176,7 +216,7 @@
         update();
         // Then every 1000ms
         const id = setInterval(update, 1000);
-        w.vbHelper._state.intervals[type] = id;
+        w.vbHelper._state.intervals[intervalKey] = id;
     }
 
 
